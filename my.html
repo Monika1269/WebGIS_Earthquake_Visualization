@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Earthquake Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw/dist/leaflet.draw.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"/>
+    <link rel="stylesheet" href="my.css"/>
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        #map {
+            height: 100%;
+        }
+    .controls {
+        position: absolute;
+        top: 7px;
+        right: 5px;
+        z-index: 1000;
+        background: white;
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+
+    #search-controls {
+        margin-top: 20px; /* Adjust this value to move the search button down */
+    }
+</style>
+</head>
+<body>
+    <h1 class="heading">EARTHQUAKE MAP OF WORLD</h1>
+    <div class="controls">
+        <label for="start">Start Date:</label>
+        <input type="date" id="start" name="start">
+
+        <label for="end">End Date:</label>
+        <input type="date" id="end" name="end">
+        <button onclick="getData()">Get Earthquake Data</button>
+        <button onclick="redirectTo('home.html')">HOME</button>
+    </div>
+    <div id="map"></div>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-draw/dist/leaflet.draw.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+    <script>
+        var map = L.map('map').setView([27.7088, 85.3205], 6); // Set initial view to Nepal
+
+        // OpenStreetMap layer
+        var osmLayer = new L.TileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, ' +
+                '<a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>'
+        }).addTo(map);
+        var topoLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+        maxZoom: 17,
+        attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, ' +
+            '<a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
+            'Imagery © <a href="https://www.opentopomap.org/">OpenTopoMap</a>'
+    });
+    var satelliteLayer = L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+    maxZoom: 20,
+    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+    attribution: 'Map data &copy; <a href="https://www.google.com/maps">Google Maps</a>'
+});
+
+
+    var baseMaps = {
+        "OpenStreetMap": osmLayer,
+        "Topographic Map": topoLayer,
+        "Satellite": satelliteLayer,
+        
+    };
+
+// Create layer control and add it to the map
+    L.control.layers(baseMaps).addTo(map);
+
+        // Marker cluster
+        var markers = L.markerClusterGroup();
+        map.addLayer(markers);
+
+        // Drawing tools
+        var drawnItems = new L.FeatureGroup();
+        map.addLayer(drawnItems);
+        var drawControl = new L.Control.Draw({
+            draw: {
+                polygon: true,
+                polyline: true,
+                rectangle: true,
+                circle: true,
+                circlemarker: true,
+                marker: true
+            },
+            edit: {
+                featureGroup: drawnItems
+            }
+        });
+        map.addControl(drawControl);
+
+        // Scale control
+        L.control.scale().addTo(map);
+
+        // Geocoder control
+        L.Control.geocoder({
+            defaultMarkGeocode: false
+        }).on('markgeocode', function (e) {
+            map.setView(e.geocode.center, 12);
+        }).addTo(map);
+
+        // Fetch earthquake data
+        function fetchEarthquakeData(startDate, endDate) {
+            const url = `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=${formattedStartDate}&endtime=${formattedEndDate}&minmagnitude=4.0&limit=1000`;
+
+            fetch(url)
+            .then(response => response.json())
+                .then(data => {
+                    L.geoJSON(data, {
+                        pointToLayer: function (feature, latlng) {
+                            return L.circleMarker(latlng, {
+                                radius: 8,
+                                color: 'red',
+                                fillColor: 'red',
+                                fillOpacity: 0.7
+                            }).bindPopup(`<strong>Magnitude:</strong> ${feature.properties.mag}<br><strong>Location:</strong> ${feature.properties.place}`);
+                        }
+                    }).addTo(markers); // Add earthquake data to the marker cluster
+                })
+                .catch(error => {
+                    console.error('Error fetching earthquake data:', error);
+                });
+        }
+
+        // Get earthquake data function called on button click
+        function getData() {
+            const startDate = document.getElementById('start').value;
+            const endDate = document.getElementById('end').value;
+            fetchEarthquakeData(startDate, endDate);
+        }
+    
+        function redirectTo(url) {
+            window.location.href = url;
+    }
+    </script>
+</body>
+</html> 
+
